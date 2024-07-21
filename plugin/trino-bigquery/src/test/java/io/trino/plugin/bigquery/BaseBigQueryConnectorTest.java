@@ -1096,6 +1096,44 @@ public abstract class BaseBigQueryConnectorTest
         abort("Test fails with a timeout sometimes and is flaky");
     }
 
+    @Test
+    public void testExecuteProcedure()
+    {
+        String tableName = "test_execute_procedure" + randomNameSuffix();
+        try {
+            onBigQuery("CREATE TABLE test." + tableName + "(col BIGINT)");
+            assertUpdate("CALL system.execute('INSERT INTO test." + tableName + " VALUES (1)");
+            assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+            assertUpdate("CALL system.execute('DELETE FROM " + tableName + " WHERE col=1')");
+            assertQueryReturnsEmptyResult("SELECT * FROM " + tableName);
+        }
+        finally {
+            onBigQuery("DROP TABLE IF EXISTS test." + tableName);
+        }
+    }
+
+    @Test
+    public void testExecuteProcedureWithNamedArgument()
+    {
+        String tableName = "test_execute_procedure" + randomNameSuffix();
+        try {
+            onBigQuery("CREATE TABLE test." + tableName + "(col BIGINT)");
+            assertThat(getQueryRunner().tableExists(getSession(), tableName)).isTrue();
+            assertUpdate("CALL system.execute(query => 'DROP TABLE " + tableName + "')");
+            assertThat(getQueryRunner().tableExists(getSession(), tableName)).isFalse();
+        }
+        finally {
+            onBigQuery("DROP TABLE IF EXISTS test." + tableName);
+        }
+    }
+
+    @Test
+    public void testExecuteProcedureWithInvalidQuery()
+    {
+        assertQueryFails("CALL system.execute('invalid')", "(?s).*no viable alternative at input.*");
+    }
+
     @Override
     protected String errorMessageForCreateTableAsSelectNegativeDate(String date)
     {
